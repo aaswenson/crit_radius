@@ -12,9 +12,11 @@ lines = fp.read()
 fp.close()
 
 temp = Template(lines)
-
+target_keff = 1.01
 
 def calc_keff_error(radius, frac, coolant, fuel, clad, matr, cool_rho):
+    """Calculate keff deviation from target.
+    """
     basename = "{0}_{1}.i".format(round(frac,5), round(radius,5))
     mass = write_inp(frac, radius, basename, coolant, fuel, matr, cool_rho)
     call(["mcnp6", "n= {0} tasks 8".format(basename)], stdout=DEVNULL)
@@ -26,9 +28,11 @@ def calc_keff_error(radius, frac, coolant, fuel, clad, matr, cool_rho):
     
     print("radius: {0:.4f} keff: {1:.3f} mass: {2:.3f}".format(radius, keff, mass/1000))
 
-    return abs(keff - 1.01)
+    return abs(keff - keff)
 
 def parse_output(basename):
+    """Parse the output for keff value.
+    """
 
     fp = open(basename + 'o', 'r')
     lines = fp.readlines()
@@ -43,7 +47,7 @@ def parse_output(basename):
     return keff
 
 def write_inp(frac, core_r, basename, coolant, fuel, clad, matr, cool_rho):
-    """
+    """Write mcnp input for keff.
     """
     AR = 1
     L = core_r * AR
@@ -55,13 +59,16 @@ def write_inp(frac, core_r, basename, coolant, fuel, clad, matr, cool_rho):
     return input.core_mass
 
 def find_radius(frac, coolant, fuel, clad, matr, cool_rho):
-    
+    """Optimize keff error to determine critical radius.
+    """
     res = minimize_scalar(calc_keff_error, method='bounded', bounds=(5, 150),
             args=(frac, coolant, fuel, clad, matr, cool_rho), options={'xatol':1e-4})
 
     return res
 
 def frac_iterate(coolant, fuel, clad, matr):
+    """Get critical radius = f(fuel_frac)
+    """
     rhos = {'CO2' : 233.89e-3, 'H2O' : 123.48e-3}
 
     resfile = open('{0}_{1}_results.txt'.format(coolant, fuel) , '+a')
