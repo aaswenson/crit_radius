@@ -1,6 +1,6 @@
 import numpy as np
 from string import Template
-from scipy.optimize import minimize, minimize_scalar
+from scipy.optimize import minimize_scalar
 from subprocess import call, DEVNULL
 import math
 import os
