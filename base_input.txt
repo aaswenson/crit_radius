@@ -1,0 +1,30 @@
+${model_information}
+c Cell Card
+1 1 -${fuel_rho} -1 imp:n=1 
+2 2 -1.7 -2 1       imp:n=1
+99 0              2 imp:n=0 
+ 
+c Surface Card
+1 rcc 0 0 0 0 0 ${core_z} ${r_core}
+2 rcc 0 0 -${refl_t} 0 0 ${refl_z} ${r_refl}
+
+c Data Card
+c
+VOL ${volume}
+c
+${fuel_string}
+mt1 grph.20t
+c
+c name: Carbon, Graphite (reactor grade)
+c density = 1.7
+m2
+     5010 -1.8431e-07
+     5011 -8.1569e-07
+     6012 -9.8841e-01
+     6013 -1.1584e-02
+mt2 grph.20t
+c
+kcode 10000 1 15 75
+ksrc  0 0 1
+mode n
+print
