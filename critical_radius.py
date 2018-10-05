@@ -14,21 +14,22 @@ fp.close()
 temp = Template(lines)
 target_keff = 1.01
 
+global core_mass, refl_mass
+
+g_to_kg = 0.001
+
 def calc_keff_error(radius, config):
     """Calculate keff deviation from target.
     """
     frac = config['fuel_frac']
     basename = "{0}_{1}.i".format(round(frac,5), round(radius,5))
-    mass = write_inp(radius, basename, config)
+    write_inp(radius, basename, config)
     call(["mcnp6", "n= {0} tasks 8".format(basename)], stdout=DEVNULL)
     keff = parse_output(basename)
     os.remove('{0}r'.format(basename))
     os.remove('{0}s'.format(basename))
     os.remove('{0}o'.format(basename))
-#    os.remove(basename)
     
-    print("radius: {0:.4f} keff: {1:.3f} mass: {2:.3f}".format(radius, keff, mass/1000))
-
     return abs(keff - target_keff)
 
 def parse_output(basename):
@@ -50,46 +51,65 @@ def parse_output(basename):
 def write_inp(core_r, basename, configuration):
     """Write mcnp input for keff.
     """
-    AR = 1
-    L = core_r * AR
-    input = HomogeneousInput(core_r, L, config=configuration)
+    global core_mass, refl_mass
+
+    configuration['core_r'] = core_r
+    input = HomogeneousInput(config=configuration)
     homog_comp = input.homog_core()
     input.write_input(basename)
     
-    return input.core_mass
+    core_mass = input.core_mass
+    refl_mass = input.refl_mass
 
 def find_radius(config):
     """Optimize keff error to determine critical radius.
     """
-    res = minimize_scalar(calc_keff_error, method='bounded', bounds=(5, 150),
+    res = minimize_scalar(calc_keff_error, method='bounded', bounds=(5, 30),
             args=(config), options={'xatol':1e-4})
 
     return res
 
-def frac_iterate(coolant, fuel, clad, matr, refl_mult):
+def frac_iterate(target, config, range):
     """Get critical radius = f(fuel_frac)
     """
-    rhos = {'CO2' : 233.89e-3, 'H2O' : 123.48e-3}
-    
+
+    global core_mass, refl_mass
+    coolant = config['cool']
+    fuel = config['fuel']
+
     resfile = open('{0}_{1}_results.txt'.format(coolant, fuel) , '+a')
-    
+    resfile.write('{0},R_Crit [cm],Core Mass [kg],Refl Mass [kg],Total Mass [kg]\n'.format(target))
+    resfile.close()
+    for sample in np.arange(range[0], range[1], range[2]):
+        config[target] = sample
+        res = find_radius(config)
+        resfile = open('{0}_{1}_results.txt'.format(coolant, fuel) , '+a')
+        resfile.write("{0:.3f},{1:.3f},{2:.3f},{3:.3f},{4:.3f}\n".format(sample, 
+                                                                     res.x, 
+                                                                     core_mass*g_to_kg,
+                                                                     refl_mass*g_to_kg, 
+                                                                     (core_mass+refl_mass)*g_to_kg))
+        resfile.close()
+
+def optimize_target(coolant, fuel, clad, matr):
+    """Determine the optimal reflector thickness for a given reactor
+    configuration.
+    """
+    rhos = {'CO2' : 233.89e-3, 'H2O' : 123.48e-3}
+    fracs = [0.3, 0.6, 0.9]
     config = {'fuel' : fuel,
-              'matr' : matr, 
+              'matr' : matr,
+              'cool' : coolant,
               'clad' : clad,
               'rho_cool' : rhos[coolant],
-              'ref_mult' : refl_mult,
-              'fuel_frac' : 0
+              'fuel_frac' : 0.6
              }
 
-    for frac in np.arange(0.1, 1.05, 0.05):
-        config['fuel_frac'] = frac
-        res = find_radius(config)
-        resfile.write("{0} {1}\n".format(frac, round(res.x, 5)))
-    
-    resfile.close()
+    frac_iterate('ref_mult', config, [0.1, 2, 0.1])
+
 
 if __name__ == '__main__':
-    frac_iterate('CO2', 'UO2', 'Inconel-718', None, 1.05)
-    frac_iterate('H2O', 'UO2', 'Inconel-718', None, 1.05)
-    frac_iterate('CO2', 'UN',  'Inconel-718', 'W',  1.05)
-    frac_iterate('H2O', 'UN',  'Inconel-718', 'W',  1.05)
+    optimize_target('CO2', 'UO2', 'Inconel-718', None)
+    optimize_target('H2O', 'UO2', 'Inconel-718', None)
+    optimize_target('CO2', 'UN',  'Inconel-718', 'W')
+    optimize_target('H2O', 'UN',  'Inconel-718', 'W')

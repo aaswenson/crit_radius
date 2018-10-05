@@ -59,7 +59,7 @@ class HomogeneousInput:
     Class to write homogeneous MCNP burnup input files.
     """
 
-    def __init__(self, radius, length, **config):
+    def __init__(self, **config):
         """Initialize geometric reactor parameters.
 
         Initialized Attributes:
@@ -73,8 +73,8 @@ class HomogeneousInput:
         config = config['config']
         
         # geometric quantities
-        self.z = length
-        self.r = radius
+        self.r = config.get('core_r')
+        self.z = self.r*config.get('AR', 1)
         self.r_cool = config.get('r_cool', 0.5)
         self.c = config.get('c', 0.031)
         self.vfrac_fuel = config.get('fuel_frac')
@@ -89,10 +89,16 @@ class HomogeneousInput:
         self.refl =     config.get('refl', 'C')
         self.rho_cool = config.get('rho_cool', 0.079082)
         
+        # calculate core volume
+        self.core_vol = self.r * self.r * self.z * math.pi
+        
         # get string for reflector material
         self.refl_mat_string = write_mat_string(2, md.mats[self.refl]['comp'],
                                                    md.mats[self.refl]['XS'],
                                                    md.mats[self.refl]['sab'])
+        
+        self.refl_mass = ((self.r + self.t_refl)**3 * math.pi - self.core_vol)\
+                        * md.mats[self.refl]['rho']
 
     def homog_core(self):
         """Homogenize the fuel, clad, and coolant.
@@ -128,7 +134,6 @@ class HomogeneousInput:
         
         # smeared density
         self.rho = round(mfrac_fuel + mfrac_cool + mfrac_matr + mfrac_clad, 5)
-        self.core_vol = self.r * self.r * self.z * math.pi
         self.core_mass = self.core_vol * self.rho
 
         # get UN composition
@@ -175,7 +180,9 @@ class HomogeneousInput:
                                        refl_mat = self.refl_mat_string,
                                        volume = self.core_vol,
                                        fuel_rho = self.rho,
-                                       refl_rho = md.mats[self.refl]['rho'])
+                                       shift_core = -(self.z + self.t_refl + 100),
+                                       refl_rho = md.mats[self.refl]['rho'],
+                                       ksrc_z = -(self.z + 99))
         # write the file
         ifile = open(name, 'w')
         ifile.write(file_string)
