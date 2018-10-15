@@ -16,6 +16,7 @@ target_keff = 1.01
 
 global core_mass, refl_mass
 
+save_keff = open('keff_res.txt', 'w')
 g_to_kg = 0.001
 
 def calc_keff_error(radius, config):
@@ -29,7 +30,8 @@ def calc_keff_error(radius, config):
     os.remove('{0}r'.format(basename))
     os.remove('{0}s'.format(basename))
     os.remove('{0}o'.format(basename))
-    
+    save_keff.write('radius: {0} frac: {1} keff: {2}\n'.format(radius, frac, keff))
+
     return abs(keff - target_keff)
 
 def parse_output(basename):
@@ -64,7 +66,7 @@ def write_inp(core_r, basename, configuration):
 def find_radius(config):
     """Optimize keff error to determine critical radius.
     """
-    res = minimize_scalar(calc_keff_error, method='bounded', bounds=(5, 30),
+    res = minimize_scalar(calc_keff_error, method='bounded', bounds=(5, 55),
             args=(config), options={'xatol':1e-4})
 
     return res
@@ -78,8 +80,10 @@ def frac_iterate(target, config, range):
     fuel = config['fuel']
 
     resfile = open('{0}_{1}_results.txt'.format(coolant, fuel) , '+a')
-    resfile.write('{0},R_Crit [cm],Core Mass [kg],Refl Mass [kg],Total Mass [kg]\n'.format(target))
+    
+    resfile.write('{0},r_crit,core_mass,refl_mass,total_mass\n'.format(target))
     resfile.close()
+    
     for sample in np.arange(range[0], range[1], range[2]):
         config[target] = sample
         res = find_radius(config)
@@ -102,14 +106,15 @@ def optimize_target(coolant, fuel, clad, matr):
               'cool' : coolant,
               'clad' : clad,
               'rho_cool' : rhos[coolant],
-              'fuel_frac' : 0.6
+              'ref_mult' : 0.165
+#              'fuel_frac' : 0.6
              }
 
-    frac_iterate('ref_mult', config, [0.1, 2, 0.1])
-
+    frac_iterate('fuel_frac', config, [0.1, 1, 0.1])
 
 if __name__ == '__main__':
     optimize_target('CO2', 'UO2', 'Inconel-718', None)
     optimize_target('H2O', 'UO2', 'Inconel-718', None)
     optimize_target('CO2', 'UN',  'Inconel-718', 'W')
     optimize_target('H2O', 'UN',  'Inconel-718', 'W')
+    save_keff.close()

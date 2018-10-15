@@ -190,10 +190,17 @@ class HomogeneousInput:
 
 
 if __name__=='__main__':
-    core_r = 16
-    AR = 1
-    L = core_r * AR
-    input = HomogeneousInput(core_r, L, config={'ref_mult'  : 1.05, 
-                                                'fuel_frac' : 0.9})
-    homog_comp = input.homog_core()
+    
+    config = {'fuel' : 'UN',
+              'matr' : 'W',
+              'cool' : 'CO2',
+              'clad' : 'Inconel-718',
+              'rho_cool' : 233.89e-3,
+              'fuel_frac' : 0.33,
+              'core_r' : 16,
+              'ref_mult' : 0.2
+             }
+
+    input = HomogeneousInput(config=config) 
+    input.homog_core()
     input.write_input('test')
