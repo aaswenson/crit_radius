@@ -19,6 +19,10 @@ global core_mass, refl_mass
 save_keff = open('keff_res.txt', 'w')
 g_to_kg = 0.001
 
+opt_refl_mult = {'UN'  : {'CO2' : 0.344, 'H2O' : 0.296},
+                 'UO2' : {'CO2' : 0.165, 'H2O' : 0.158}
+                }
+
 def calc_keff_error(radius, config):
     """Calculate keff deviation from target.
     """
@@ -106,7 +110,7 @@ def optimize_target(coolant, fuel, clad, matr):
               'cool' : coolant,
               'clad' : clad,
               'rho_cool' : rhos[coolant],
-              'ref_mult' : 0.165
+              'ref_mult' : opt_refl_mult[fuel][coolant]
 #              'fuel_frac' : 0.6
              }
 
