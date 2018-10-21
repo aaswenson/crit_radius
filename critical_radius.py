@@ -1,6 +1,7 @@
 import numpy as np
 from string import Template
-from scipy.optimize import minimize_scalar
+from scipy import interpolate
+from scipy.optimize import minimize_scalar, curve_fit
 from subprocess import call, DEVNULL
 import math
 import os
@@ -23,10 +24,12 @@ opt_refl_mult = {'UN'  : {'CO2' : 0.344, 'H2O' : 0.296},
                  'UO2' : {'CO2' : 0.165, 'H2O' : 0.158}
                 }
 
-def calc_keff_error(radius, config):
+def calc_keff(config):
     """Calculate keff deviation from target.
     """
     frac = config['fuel_frac']
+    radius = config['core_r']
+
     basename = "{0}_{1}.i".format(round(frac,5), round(radius,5))
     write_inp(radius, basename, config)
     call(["mcnp6", "n= {0} tasks 8".format(basename)], stdout=DEVNULL)
@@ -34,9 +37,9 @@ def calc_keff_error(radius, config):
     os.remove('{0}r'.format(basename))
     os.remove('{0}s'.format(basename))
     os.remove('{0}o'.format(basename))
-    save_keff.write('radius: {0} frac: {1} keff: {2}\n'.format(radius, frac, keff))
+    os.remove(basename)
 
-    return abs(keff - target_keff)
+    return keff
 
 def parse_output(basename):
     """Parse the output for keff value.
@@ -51,8 +54,9 @@ def parse_output(basename):
         if 'final result' in line:
             res_idx.append(idx)
     keff = float(lines[res_idx[-1]].split()[2])
+    stdv = float(lines[res_idx[-1]].split()[3])
 
-    return keff
+    return keff, stdv
 
 def write_inp(core_r, basename, configuration):
     """Write mcnp input for keff.
@@ -67,54 +71,99 @@ def write_inp(core_r, basename, configuration):
     core_mass = input.core_mass
     refl_mass = input.refl_mass
 
-def find_radius(config):
-    """Optimize keff error to determine critical radius.
+def cubic(x, a, b, c, d):
     """
-    res = minimize_scalar(calc_keff_error, method='bounded', bounds=(5, 55),
-            args=(config), options={'xatol':1e-4})
+    """
+    A = a*np.power(x,3)
+    B = b*np.power(x,2)
+    C = c*x
 
-    return res
+    return np.add(A,np.add(B,np.add(C,d)))
 
-def frac_iterate(target, config, range):
+def load_data_from_file(lines):
+    """
+    """
+    results = {}
+    for line in lines:
+        if 'fuel fraction' in line:
+            frac = float(line.split(':')[1])
+            results[frac] = {}
+        else:
+            data = [float(x) for x in line.split(',')]
+            results[frac][data[0]] = data[1]
+    
+    return results
+
+def crit_radius(config, range, load_data=None):
     """Get critical radius = f(fuel_frac)
     """
 
-    global core_mass, refl_mass
     coolant = config['cool']
     fuel = config['fuel']
-
-    resfile = open('{0}_{1}_results.txt'.format(coolant, fuel) , '+a')
+    name = '{0}_{1}'.format(coolant, fuel)
     
-    resfile.write('{0},r_crit,core_mass,refl_mass,total_mass\n'.format(target))
-    resfile.close()
+    x = []
+    keff = []
     
-    for sample in np.arange(range[0], range[1], range[2]):
-        config[target] = sample
-        res = find_radius(config)
-        resfile = open('{0}_{1}_results.txt'.format(coolant, fuel) , '+a')
-        resfile.write("{0:.3f},{1:.3f},{2:.3f},{3:.3f},{4:.3f}\n".format(sample, 
-                                                                     res.x, 
-                                                                     core_mass*g_to_kg,
-                                                                     refl_mass*g_to_kg, 
-                                                                     (core_mass+refl_mass)*g_to_kg))
-        resfile.close()
+    if load_data:
+        for radius in load_data:
+            x.append(radius)
+            keff.append(load_data[radius])
+    else:
+        resfile = open('{0}_fits.csv'.format(name), '+a')
+        resfile.write('fuel fraction: {0:.2f}\n'.format(config['fuel_frac']))
+        for radius in np.linspace(range[0], range[1], range[2]):
+            config['core_r'] = radius
+            res, stdv = calc_keff(config)
+            x.append(radius)
+            keff.append(res)
+            resfile.write('{0},{1},{2}\n'.format(radius, res, stdv))
+        
+    keff_reduced = np.array(keff) - target_keff
+    coeffs, copt = curve_fit(cubic, x, keff_reduced)
+    
+    roots = np.roots(coeffs)
+    real_roots = roots[np.isreal(roots)].real
+    # return only the real root
+    print(coolant, fuel, config['fuel_frac'])
+    print(coeffs)
+    print(real_roots)
+    real_roots = [x for x in real_roots if x >= 0]
 
-def optimize_target(coolant, fuel, clad, matr):
+    return min(real_roots)
+    
+def optimize_target(coolant, fuel, clad, matr, load_data=True):
     """Determine the optimal reflector thickness for a given reactor
     configuration.
     """
-    rhos = {'CO2' : 233.89e-3, 'H2O' : 123.48e-3}
-    fracs = [0.3, 0.6, 0.9]
+    rhos = {'CO2' : 252.638e-3, 'H2O' : 141.236e-3}
     config = {'fuel' : fuel,
               'matr' : matr,
               'cool' : coolant,
               'clad' : clad,
               'rho_cool' : rhos[coolant],
-              'ref_mult' : opt_refl_mult[fuel][coolant]
-#              'fuel_frac' : 0.6
+              'ref_mult' : opt_refl_mult[fuel][coolant],
              }
+    
+    results = open('{0}_{1}_results.txt'.format(coolant, fuel) , '+a')
+    
+    data = None
 
-    frac_iterate('fuel_frac', config, [0.1, 1, 0.1])
+    for frac in np.arange(0.1, 1, 0.1):
+        # load saved results
+        if load_data:
+            filename = '{0}_{1}_fits.csv'.format(coolant, fuel)
+            lines = open(filename, 'r').readlines()
+            keff_data = load_data_from_file(lines)
+            config['fuel_frac'] = frac
+            data = keff_data[round(frac, 1)]
+        # get critical radius
+        r = crit_radius(config, [5, 55, 5], data)
+        # save new results
+        if not load_data:
+            results.write('{0:.2f} {1}\n'.format(frac, r))
+
+    results.close()
 
 if __name__ == '__main__':
     optimize_target('CO2', 'UO2', 'Inconel-718', None)
