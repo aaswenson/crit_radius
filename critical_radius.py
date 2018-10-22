@@ -126,7 +126,6 @@ def crit_radius(config, range, load_data=None):
     real_roots = roots[np.isreal(roots)].real
     # return only the real root
     print(coolant, fuel, config['fuel_frac'])
-    print(coeffs)
     print(real_roots)
     real_roots = [x for x in real_roots if x >= 0]
 
@@ -145,29 +144,29 @@ def optimize_target(coolant, fuel, clad, matr, load_data=True):
               'ref_mult' : opt_refl_mult[fuel][coolant],
              }
     
-    results = open('{0}_{1}_results.txt'.format(coolant, fuel) , '+a')
+    results = open('{0}_{1}_results.txt'.format(coolant, fuel) , '+w')
+    results.write('fuel_frac,crit_radius\n') 
     
     data = None
 
     for frac in np.arange(0.1, 1, 0.1):
+        config['fuel_frac'] = frac
         # load saved results
         if load_data:
             filename = '{0}_{1}_fits.csv'.format(coolant, fuel)
             lines = open(filename, 'r').readlines()
             keff_data = load_data_from_file(lines)
-            config['fuel_frac'] = frac
             data = keff_data[round(frac, 1)]
         # get critical radius
-        r = crit_radius(config, [5, 55, 5], data)
-        # save new results
-        if not load_data:
-            results.write('{0:.2f} {1}\n'.format(frac, r))
+        r = crit_radius(config, [5, 70, 5], data)
+        results.write('{0:.2f},{1}\n'.format(frac, r))
 
     results.close()
 
 if __name__ == '__main__':
-    optimize_target('CO2', 'UO2', 'Inconel-718', None)
-    optimize_target('H2O', 'UO2', 'Inconel-718', None)
-    optimize_target('CO2', 'UN',  'Inconel-718', 'W')
-    optimize_target('H2O', 'UN',  'Inconel-718', 'W')
+    load = True
+    optimize_target('CO2', 'UO2', 'Inconel-718', None, load)
+    optimize_target('H2O', 'UO2', 'Inconel-718', None, load)
+    optimize_target('CO2', 'UN',  'Inconel-718', 'W', load)
+    optimize_target('H2O', 'UN',  'Inconel-718', 'W', load)
     save_keff.close()

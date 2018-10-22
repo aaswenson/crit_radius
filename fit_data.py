@@ -58,5 +58,5 @@ if __name__=='__main__':
             print(name + ' ' + str(popt[0]) + ' ' + str(popt[1]))
 
         elif args.crit_radius: 
-            popt, cov = fit_data(data, power, 'fuel_frac', 'r_crit')
+            popt, cov = fit_data(data, power, 'fuel_frac', 'crit_radius')
             print(name + ' ' + str(popt[0]) + ' ' + str(popt[1]))
