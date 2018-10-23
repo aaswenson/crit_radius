@@ -56,7 +56,7 @@ def plot_results(data):
 
     plt.title('Critical Radius: Buried Reactor on Mars')
     plt.xlabel('Fuel Fraction [-]')
-    plt.ylabel('Critical Core Radius [m]')
+    plt.ylabel('Critical Core Radius [cm]')
     plt.savefig('crit_radius.png', dpi=700)
 
 if __name__=='__main__':
