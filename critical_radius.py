@@ -131,7 +131,7 @@ def crit_radius(config, range, load_data=None):
 
     return min(real_roots)
     
-def optimize_target(coolant, fuel, clad, matr, load_data=True):
+def fuel_frac(coolant, fuel, clad, matr, load_data=True):
     """Determine the optimal reflector thickness for a given reactor
     configuration.
     """
@@ -163,10 +163,49 @@ def optimize_target(coolant, fuel, clad, matr, load_data=True):
 
     results.close()
 
+def refl_mult(coolant, fuel, clad, matr, load_data=True):
+    """Determine the optimal reflector thickness for a given reactor
+    configuration.
+    """
+    rhos = {'CO2' : 252.638e-3, 'H2O' : 141.236e-3}
+    config = {'fuel' : fuel,
+              'matr' : matr,
+              'cool' : coolant,
+              'clad' : clad,
+              'rho_cool' : rhos[coolant],
+              'fuel_frac' : 0.6
+             }
+    
+    results = open('{0}_{1}_results.txt'.format(coolant, fuel) , '+w')
+    results.write('fuel_frac,crit_radius\n') 
+    
+    data = None
+
+    for mult in np.arange(0.1, 5, 0.1):
+        config['ref_mult'] = mult
+        # load saved results
+        if load_data:
+            filename = '{0}_{1}_fits.csv'.format(coolant, fuel)
+            lines = open(filename, 'r').readlines()
+            keff_data = load_data_from_file(lines)
+            data = keff_data[round(frac, 1)]
+        # get critical radius
+        r = crit_radius(config, [5, 70, 5], data)
+        results.write('{0:.2f},{1}\n'.format(frac, r))
+
+    results.close()
+
 if __name__ == '__main__':
+#   load = True
+#   fuel_frac('CO2', 'UO2', 'Inconel-718', None, load)
+#   fuel_frac('H2O', 'UO2', 'Inconel-718', None, load)
+#   fuel_frac('CO2', 'UN',  'Inconel-718', 'W', load)
+#   fuel_frac('H2O', 'UN',  'Inconel-718', 'W', load)
+#   save_keff.close()
+    # reflector thickness
     load = True
-    optimize_target('CO2', 'UO2', 'Inconel-718', None, load)
-    optimize_target('H2O', 'UO2', 'Inconel-718', None, load)
-    optimize_target('CO2', 'UN',  'Inconel-718', 'W', load)
-    optimize_target('H2O', 'UN',  'Inconel-718', 'W', load)
+    refl_mult('CO2', 'UO2', 'Inconel-718', None, load)
+    refl_mult('H2O', 'UO2', 'Inconel-718', None, load)
+    refl_mult('CO2', 'UN',  'Inconel-718', 'W', load)
+    refl_mult('H2O', 'UN',  'Inconel-718', 'W', load)
     save_keff.close()
