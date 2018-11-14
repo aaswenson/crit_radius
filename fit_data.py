@@ -28,7 +28,7 @@ def power(x, a, b):
 
 def poly(x, a, b, c):
 
-    return np.add(np.add(np.power(x,a), np.multiply(x, b)), c)
+    return np.add(np.add(a*np.power(x,2), np.multiply(x, b)), c)
 
 def fit_data(data, func, x, y):
     """Fit the data to function
@@ -43,14 +43,17 @@ def plot_results(data):
     fig, ax = plt.subplots()
 
 
-    line_formats = {'CO2 UO2 ' : 'r--',
-                    'H2O UO2 ' : 'r-',
-                    'CO2 UN '  : 'b--',
-                    'H2O UN '  : 'b-'}
+    line_formats = {'CO2 UO2 ' : ('r', 'o'),
+                    'H2O UO2 ' : ('r', 'v'),
+                    'CO2 UN '  : ('b', 'o'),
+                    'H2O UN '  : ('b', 'v')}
 
     for rxtr in data:
         res = data[rxtr]
-        ax.plot(res[0], res[1], line_formats[rxtr], label=rxtr)
+        ax.scatter(res[0], res[1], 
+                   c=line_formats[rxtr][0],
+                   marker=line_formats[rxtr][1], 
+                   label=rxtr)
 
     plt.legend()
 

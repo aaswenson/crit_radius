@@ -158,6 +158,7 @@ class HomogeneousInput:
         for frac in components:
             homog_comp = merge_comps(homog_comp, components[frac])
         
+        print(homog_comp[92235])
         self.core_mat_string = write_mat_string(1, homog_comp, 
                                                 md.mats[self.fuel]['XS'])
         
@@ -196,9 +197,10 @@ if __name__=='__main__':
               'cool' : 'CO2',
               'clad' : 'Inconel-718',
               'rho_cool' : 233.89e-3,
-              'fuel_frac' : 0.33,
+              'fuel_frac' : 1,
               'core_r' : 16,
-              'ref_mult' : 0.2
+              'ref_mult' : 0.2,
+              'c' : 0
              }
 
     input = HomogeneousInput(config=config) 
