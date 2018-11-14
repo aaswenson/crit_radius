@@ -188,10 +188,10 @@ def refl_mult(coolant, fuel, clad, matr, load_data=True):
             filename = '{0}_{1}_fits.csv'.format(coolant, fuel)
             lines = open(filename, 'r').readlines()
             keff_data = load_data_from_file(lines)
-            data = keff_data[round(frac, 1)]
+            data = keff_data[round(mult, 1)]
         # get critical radius
         r = crit_radius(config, [5, 70, 5], data)
-        results.write('{0:.2f},{1}\n'.format(frac, r))
+        results.write('{0:.2f},{1}\n'.format(mult, r))
 
     results.close()
 
