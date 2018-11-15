@@ -167,6 +167,7 @@ def refl_mult(coolant, fuel, clad, matr, load_data=True):
     """Determine the optimal reflector thickness for a given reactor
     configuration.
     """
+    global core_mass, refl_mass
     rhos = {'CO2' : 252.638e-3, 'H2O' : 141.236e-3}
     config = {'fuel' : fuel,
               'matr' : matr,
@@ -181,7 +182,7 @@ def refl_mult(coolant, fuel, clad, matr, load_data=True):
     
     data = None
 
-    for mult in np.arange(0.1, 5, 0.1):
+    for mult in np.arange(0.001, 0.2, 0.05):
         config['ref_mult'] = mult
         # load saved results
         if load_data:
@@ -191,7 +192,10 @@ def refl_mult(coolant, fuel, clad, matr, load_data=True):
             data = keff_data[round(mult, 1)]
         # get critical radius
         r = crit_radius(config, [5, 70, 5], data)
-        results.write('{0:.2f},{1}\n'.format(mult, r))
+        m_tot = core_mass + refl_mass
+        res_str = '{0:.2f},{1:.3f},{2:.3f}\n'.format(mult, r, m_tot)
+        results.write(res_str)
+        print(res_str)
 
     results.close()
 
@@ -203,7 +207,7 @@ if __name__ == '__main__':
 #   fuel_frac('H2O', 'UN',  'Inconel-718', 'W', load)
 #   save_keff.close()
     # reflector thickness
-    load = True
+    load = False
     refl_mult('CO2', 'UO2', 'Inconel-718', None, load)
     refl_mult('H2O', 'UO2', 'Inconel-718', None, load)
     refl_mult('CO2', 'UN',  'Inconel-718', 'W', load)

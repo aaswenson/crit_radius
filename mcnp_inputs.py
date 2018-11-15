@@ -158,7 +158,6 @@ class HomogeneousInput:
         for frac in components:
             homog_comp = merge_comps(homog_comp, components[frac])
         
-        print(homog_comp[92235])
         self.core_mat_string = write_mat_string(1, homog_comp, 
                                                 md.mats[self.fuel]['XS'])
         
