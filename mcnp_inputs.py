@@ -201,6 +201,16 @@ if __name__=='__main__':
               'ref_mult' : 0.2,
               'c' : 0
              }
+    
+    config = {'fuel' : 'UO2',
+              'matr' : None,
+              'cool' : 'CO2',
+              'clad' : 'Inconel-718',
+              'fuel_frac' : 0.6,
+              'rho_cool' : 252.638e-3,
+              'ref_mult' : 0.16,
+              'core_r' : 17.6308
+             }
 
     input = HomogeneousInput(config=config) 
     input.homog_core()

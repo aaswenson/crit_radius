@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 cm_to_m = 0.01
 
 def min_mult(params):
-    res = minimize_scalar(poly, args=((a, b, c)), method='bounded', bounds=(0.1,2))
+    a, b, c, d = params
+    res = minimize_scalar(cubic, args=(a, b, c, d), method='bounded', bounds=(0,0.5))
     
     return res.x
 
@@ -19,6 +20,28 @@ def load_data(file):
     data = pandas.read_csv(file)
 
     return data
+
+def load_refl(file):
+    """Load the reflector data.
+    """
+    lines = open(file, 'r').readlines()
+    mult = []
+    mass = []
+    for line in lines[1:]:
+        data = [float(x) for x in line.split(',')]
+        mult.append(data[0])
+        mass.append(data[2])
+
+    return {'mult' : mult, 'mass' : mass}
+    
+def cubic(x, a, b, c, d):
+    """
+    """
+    A = a*np.power(x,3)
+    B = b*np.power(x,2)
+    C = c*x
+
+    return np.add(A,np.add(B,np.add(C,d)))
 
 def power(x, a, b):
     """Exponential fitting function
@@ -73,15 +96,15 @@ if __name__=='__main__':
     res_files = glob.glob('./*results.txt')
     plot_data = {}
     for file in res_files:
-        data = load_data(file)
         name = " ".join(file.split('results.txt')[0].split('_')).strip('./')
         if args.reflector:
-            popt, cov = fit_data(data, poly, 'ref_mult', 'total_mass')
+            data = load_refl(file)
+            popt, cov = fit_data(data, cubic, 'mult', 'mass')
             x = min_mult(popt)
-            print(name + ' {0:.3f}'.format(x))
-            print(name + ' ' + str(popt[0]) + ' ' + str(popt[1]))
+            print(name + ' {0:.4f}'.format(x))
 
         elif args.crit_radius:
+            data = load_data(file)
             plot_data[name] = (data['fuel_frac'], data['crit_radius'])
             popt, cov = fit_data(data, power, 'fuel_frac', 'crit_radius')
             print(name + ' ' + str(popt[0]) + ' ' + str(popt[1]))
