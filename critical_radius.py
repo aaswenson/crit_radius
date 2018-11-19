@@ -5,6 +5,7 @@ from scipy.optimize import minimize_scalar, curve_fit
 from subprocess import call, DEVNULL
 import math
 import os
+import fit_data as fd
 from mcnp_inputs import HomogeneousInput
 import argparse
 
@@ -129,7 +130,7 @@ def crit_radius(config, range, load_data=None):
 
     return min(real_roots)
     
-def fuel_frac(coolant, fuel, clad, matr, load_data=True):
+def fuel_frac(coolant, fuel, clad, matr):
     """Determine the optimal reflector thickness for a given reactor
     configuration.
     """
@@ -139,83 +140,50 @@ def fuel_frac(coolant, fuel, clad, matr, load_data=True):
               'cool' : coolant,
               'clad' : clad,
               'rho_cool' : rhos[coolant],
-              'ref_mult' : opt_refl_mult[fuel][coolant],
              }
     
     results = open('{0}_{1}_results.txt'.format(coolant, fuel) , '+w')
     results.write('fuel_frac,crit_radius\n') 
     
-    data = None
-
     for frac in np.arange(0.1, 1, 0.1):
         config['fuel_frac'] = frac
-        # load saved results
-        if load_data:
-            filename = '{0}_{1}_fits.csv'.format(coolant, fuel)
-            lines = open(filename, 'r').readlines()
-            keff_data = load_data_from_file(lines)
-            data = keff_data[round(frac, 1)]
+        config['ref_mult'] = refl_mult(config)
+
         # get critical radius
-        r = crit_radius(config, [5, 70, 5], data)
-        results.write('{0:.2f},{1}\n'.format(frac, r))
+        r = crit_radius(config, [5, 70, 5], None)
+        results.write('{0:.2f},{1},{2}\n'.format(frac, r, config['ref_mult']))
 
     results.close()
 
-def refl_mult(coolant, fuel, clad, matr, load_data=True):
+def refl_mult(config):
     """Determine the optimal reflector thickness for a given reactor
     configuration.
     """
 
-    rhos = {'CO2' : 252.638e-3, 'H2O' : 141.236e-3}
-    config = {'fuel' : fuel,
-              'matr' : matr,
-              'cool' : coolant,
-              'clad' : clad,
-              'rho_cool' : rhos[coolant],
-              'fuel_frac' : 0.6
-             }
-    
-    results = open('{0}_{1}_results.txt'.format(coolant, fuel) , '+w')
-    results.write('fuel_frac,crit_radius\n') 
-    
-    data = None
-
-    for mult in np.arange(0.001, 0.4, 0.05):
+    mults = np.arange(0.001, 0.4, 0.05)
+    data = {'mass' : [], 'mult' : mults}
+    for mult in mults:
         config['ref_mult'] = mult
-        # load saved results
-        if load_data:
-            filename = '{0}_{1}_fits.csv'.format(coolant, fuel)
-            lines = open(filename, 'r').readlines()
-            keff_data = load_data_from_file(lines)
-            data = keff_data[round(mult, 1)]
+        
         # get critical radius
-        r = crit_radius(config, [5, 70, 5], data)
-
+        r = crit_radius(config, [5, 70, 5], None)
+        
+        # get critcial mass
         config['core_r'] = r
         input = HomogeneousInput(config=config)
         homog_comp = input.homog_core()
     
-        m_tot = input.core_mass + input.refl_mass
-        res_str = '{0:.2f},{1:.3f},{2:.3f}\n'.format(mult, r, m_tot)
-        results.write(res_str)
-        print(res_str)
-
-    results.close()
+        data['mass'].append(input.core_mass + input.refl_mass)
+        
+    
+    popt, cov = fd.fit_data(data, cubic, 'mult', 'mass')
+    x = fd.min_mult(popt)
+    
+    return x
 
 if __name__ == '__main__':
-   load = False
-   fuel_frac('CO2', 'UO2', 'Inconel-718', None, load)
-   fuel_frac('H2O', 'UO2', 'Inconel-718', None, load)
-   fuel_frac('CO2', 'UN',  'Inconel-718', 'W', load)
-   fuel_frac('H2O', 'UN',  'Inconel-718', 'W', load)
+   fuel_frac('CO2', 'UO2', 'Inconel-718', None)
+   fuel_frac('H2O', 'UO2', 'Inconel-718', None)
+   fuel_frac('CO2', 'UN',  'Inconel-718', 'W')
+   fuel_frac('H2O', 'UN',  'Inconel-718', 'W')
    save_keff.close()
-    # reflector thickness
-#   load = False
-#   refl_mult('CO2', 'UO2', 'Inconel-718', None, load)
-#   refl_mult('H2O', 'UO2', 'Inconel-718', None, load)
-#   refl_mult('CO2', 'UN',  'Inconel-718', 'W', load)
-#   refl_mult('H2O', 'UN',  'Inconel-718', 'W', load)
-#   save_keff.close()
-
-
-
