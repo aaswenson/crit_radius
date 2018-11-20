@@ -9,7 +9,7 @@ import fit_data as fd
 from mcnp_inputs import HomogeneousInput
 import argparse
 
-fp = open('base_input.txt', 'r')
+fp = open('./base_input.txt', 'r')
 lines = fp.read()
 fp.close()
 
@@ -18,7 +18,6 @@ target_keff = 1.01
 
 global core_mass, refl_mass
 
-save_keff = open('keff_res.txt', 'w')
 g_to_kg = 0.001
 
 opt_refl_mult = {'UN'  : {'CO2' : 0.3079, 'H2O' : 0.2887},
@@ -160,13 +159,13 @@ def refl_mult(config):
     configuration.
     """
 
-    mults = np.arange(0.001, 0.4, 0.05)
+    mults = np.linspace(0.001, 1, 5)
     data = {'mass' : [], 'mult' : mults}
     for mult in mults:
         config['ref_mult'] = mult
         
         # get critical radius
-        r = crit_radius(config, [5, 70, 5], None)
+        r = crit_radius(config, [5, 100, 5], None)
         
         # get critcial mass
         config['core_r'] = r
@@ -174,16 +173,16 @@ def refl_mult(config):
         homog_comp = input.homog_core()
     
         data['mass'].append(input.core_mass + input.refl_mass)
-        
     
-    popt, cov = fd.fit_data(data, cubic, 'mult', 'mass')
+    popt, cov = fd.fit_data(data, fd.cubic, 'mult', 'mass')
     x = fd.min_mult(popt)
     
     return x
 
 if __name__ == '__main__':
-   fuel_frac('CO2', 'UO2', 'Inconel-718', None)
-   fuel_frac('H2O', 'UO2', 'Inconel-718', None)
-   fuel_frac('CO2', 'UN',  'Inconel-718', 'W')
-   fuel_frac('H2O', 'UN',  'Inconel-718', 'W')
-   save_keff.close()
+    matr = None
+    cool, fuel, clad = sys.argv[1:4]
+    if len(sys.argv) == 5:
+        matr = sys.argv[4]
+    fuel_frac(cool, fuel, clad, matr)
+    save_keff.close()
