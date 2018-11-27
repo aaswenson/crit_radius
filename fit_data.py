@@ -1,9 +1,7 @@
 import glob
-import pandas
 import numpy as np
 import argparse
 from scipy.optimize import curve_fit, minimize_scalar
-import matplotlib.pyplot as plt
 
 cm_to_m = 0.01
 
