@@ -24,7 +24,7 @@ def calc_keff(config):
 
     basename = "{0}_{1}.i".format(round(frac,5), round(radius,5))
     write_inp(basename, config)
-    call(["mcnp6", "n= {0} tasks 8".format(basename)], stdout=DEVNULL)
+    call(["mcnp6", "n= {0} tasks 20".format(basename)], stdout=DEVNULL)
     keff = parse_output(basename)
     os.remove('{0}r'.format(basename))
     os.remove('{0}s'.format(basename))
@@ -129,7 +129,7 @@ def crit_radius(config, steps):
 
     return min(real_roots)
     
-def fuel_frac(coolant, fuel, clad, matr):
+def fuel_frac(coolant, fuel, clad, matr, frac=None):
     """Determine the optimal reflector thickness for a given reactor
     configuration.
     """
@@ -145,7 +145,14 @@ def fuel_frac(coolant, fuel, clad, matr):
     results = open('{0}_{1}_results.txt'.format(coolant, fuel) , '+w')
     results.write('fuel_frac,crit_radius\n') 
     
-    for frac in np.arange(0.6, 1, 0.1):
+    steps = 5
+    start = 0.6
+    stop = 1
+    if frac:
+        steps = 1
+        start = frac
+        stop = frac
+    for frac in np.linspace(start, stop, steps):
         config['fuel_frac'] = frac
         config['ref_mult'] = refl_mult(config)
         # get critical radius
@@ -160,9 +167,9 @@ def refl_mult(config):
     configuration.
     """
 
-    mults = np.linspace(0.001, 0.5, 5)
+    mults = np.linspace(0.15, 0.4, 5)
     data = {'mass' : [], 'mult' : mults}
-
+    refl_res = open('refl_results.txt', 'a')
     for mult in mults:
         config['ref_mult'] = mult
         # get critical radius
@@ -171,18 +178,24 @@ def refl_mult(config):
         config['core_r'] = r
         input = HomogeneousInput(config=config)
         homog_comp = input.homog_core()
-        
+        mass = input.core_mass + input.refl_mass
         data['mass'].append(input.core_mass + input.refl_mass)
-    
-    popt, cov = fd.fit_data(data, cubic, 'mult', 'mass')
-    opt_mult = fd.min_mult(popt)
+        # save results
+        refl_res.write('{0},{1},{2}\n'.format(config['fuel_frac'], 
+                                              config['ref_mult'], mass))
+    popt, cov = fd.fit_data(data, fd.poly, 'mult', 'mass')
+    opt_mult = fd.min_mult(popt, fd.poly)
+    refl_res.close()
     
     return opt_mult
 
 if __name__ == '__main__':
-    matr = None
-    cool, fuel, clad = sys.argv[1:4]
-    if len(sys.argv) == 5:
-        matr = sys.argv[4]
-    fuel_frac(cool, fuel, clad, matr)
+    cool, fuel, clad, matr = sys.argv[1:5]
+    if matr == 'None':
+        matr = None
+    if len(sys.argv) > 5:
+        frac = sys.argv[5]
+        fuel_frac(cool, fuel, clad, matr,float(frac))
+    else:
+        fuel_frac(cool, fuel, clad, matr,frac)
 

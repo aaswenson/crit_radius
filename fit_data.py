@@ -5,9 +5,9 @@ from scipy.optimize import curve_fit, minimize_scalar
 
 cm_to_m = 0.01
 
-def min_mult(params):
-    a, b, c, d = params
-    res = minimize_scalar(cubic, args=(a, b, c, d), method='bounded', bounds=(0,0.5))
+def min_mult(params, func):
+    coeffs = tuple(params)
+    res = minimize_scalar(func, args=coeffs, method='bounded', bounds=(0.15,0.4))
     
     return res.x
 
