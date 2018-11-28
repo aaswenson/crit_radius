@@ -116,12 +116,10 @@ def crit_radius(config, steps):
     coeffs, copt = curve_fit(quad, x, keff_reduced)
     
     roots = np.roots(coeffs)
+    # return only the real root
     real_roots = roots[np.isreal(roots)].real
     real_roots = [x for x in real_roots if x >= 0]
     
-    # return only the real root
-    print(coolant, fuel, config['fuel_frac'])
-    print(min(real_roots))
 
     return min(real_roots)
     
@@ -135,50 +133,56 @@ def fuel_frac(coolant, fuel, clad, matr, frac=None):
               'cool' : coolant,
               'clad' : clad,
               'rho_cool' : rhos[coolant],
-              'ref_mult' : opt_refl_mult[fuel][coolant],
              }
-    
-    results = open('{0}_{1}_results.txt'.format(coolant, fuel) , '+w')
+    resname = '{0}_{1}_results.txt'.format(coolant, fuel)
+    results = open(resname, '+w')
     results.write('fuel_frac,crit_radius\n') 
-    
+    results.close()
+
     steps = 5
     start = 0.6
     stop = 1
+    # allow for 1 frac to speed up calc
     if frac:
         steps = 1
         start = frac
         stop = frac
     for frac in np.linspace(start, stop, steps):
+        results = open(resname, 'a')
         config['fuel_frac'] = frac
         config['ref_mult'] = refl_mult(config)
         # get critical radius
         r = crit_radius(config, 5)
         results.write('{0:.2f},{1:.5f},{2:.5f}\n'.format(frac, r,
                                                          config['ref_mult']))
-
-    results.close()
+        results.close()
 
 def refl_mult(config):
     """Determine the optimal reflector thickness for a given reactor
     configuration.
     """
 
-    mults = np.linspace(0.15, 0.4, 5)
+    mults = np.linspace(0.001, 0.4, 5)
     data = {'mass' : [], 'mult' : mults}
     refl_res = open('refl_results.txt', 'a')
     for mult in mults:
         config['ref_mult'] = mult
         # get critical radius
         r = crit_radius(config, 5)
-
+        # get the masses
         config['core_r'] = r
         input = HomogeneousInput(config=config)
         homog_comp = input.homog_core()
-        mass = input.core_mass + input.refl_mass
-        data['mass'].append(input.core_mass + input.refl_mass)
+        tot_mass = input.core_mass + input.refl_mass + input.PV_mass
+        data['mass'].append(tot_mass)
         # save results
-        refl_res.write('{0},{1},{2}\n'.format(config['fuel_frac'], 
-                                              config['ref_mult'], mass))
+        refl_res.write('{0},{1},{2},{3},{4},{5}\n'.format(config['fuel_frac'], 
+                                                          config['ref_mult'], 
+                                                          input.core_mass,
+                                                          input.refl_mass,
+                                                          input.PV_mass,
+                                                          tot_mass))
+
     popt, cov = fd.fit_data(data, fd.poly, 'mult', 'mass')
     opt_mult = fd.min_mult(popt, fd.poly)
     refl_res.close()

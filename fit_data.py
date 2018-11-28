@@ -7,7 +7,7 @@ cm_to_m = 0.01
 
 def min_mult(params, func):
     coeffs = tuple(params)
-    res = minimize_scalar(func, args=coeffs, method='bounded', bounds=(0.15,0.4))
+    res = minimize_scalar(func, args=coeffs, method='bounded', bounds=(0.001,0.4))
     
     return res.x
 
