@@ -12,10 +12,6 @@ domain = (5, 28.75)
 
 g_to_kg = 0.001
 
-opt_refl_mult = {'UN'  : {'CO2' : 0.3079, 'H2O' : 0.2887},
-                 'UO2' : {'CO2' : 0.1776, 'H2O' : 0.1688}
-                }
-
 def calc_keff(config):
     """Calculate keff deviation from target.
     """
@@ -24,7 +20,7 @@ def calc_keff(config):
 
     basename = "{0}_{1}.i".format(round(frac,5), round(radius,5))
     write_inp(basename, config)
-    call(["mcnp6", "n= {0} tasks 20".format(basename)], stdout=DEVNULL)
+    call(["mcnp6", "n= {0} tasks 8".format(basename)], stdout=DEVNULL)
     keff = parse_output(basename)
     os.remove('{0}r'.format(basename))
     os.remove('{0}s'.format(basename))

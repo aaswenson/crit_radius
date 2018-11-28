@@ -97,8 +97,28 @@ class HomogeneousInput:
                                                    md.mats[self.refl]['XS'],
                                                    md.mats[self.refl]['sab'])
         
+        # get string for coolant material
+        self.cool_mat_string = write_mat_string(3, md.mats[self.cool]['comp'],
+                                                   md.mats[self.cool]['XS'],
+                                                   md.mats[self.cool]['sab'])
+        self.calc_masses()
+
+    def calc_masses(self):
+        """Calculate pressure vessel and reflector masses
+        """
         self.refl_mass = ((self.r + self.t_refl)**3 * math.pi - self.core_vol)\
                         * md.mats[self.refl]['rho']
+
+        R = self.r + self.t_refl
+        # from faculty.washington.edu/vkumar/me356/pv_rules.pdf
+        P = md.mats[self.cool]['P_ave']
+        S = md.mats['SS304']['strength']
+        
+        self.t_PV = R*P/ (S + 0.6*P)
+
+        self.PV_vol = ((R+self.t_PV)**2 - R**2)*math.pi*self.z +\
+                       ((R+self.t_PV)**3 - R**3)*(4/3)*math.pi
+        self.PV_mass = self.PV_vol * md.mats['SS304']['rho']
 
     def homog_core(self):
         """Homogenize the fuel, clad, and coolant.
@@ -176,12 +196,18 @@ class HomogeneousInput:
                                        refl_t = self.t_refl,
                                        refl_z = self.z + 2*self.t_refl,
                                        r_refl = self.r + self.t_refl,
+                                       refl_top = self.z + self.t_refl,
+                                       PV_t = self.t_refl + self.t_PV,
+                                       PV_z = self.z + 2*(self.t_refl+self.t_PV),
+                                       r_PV = self.r + self.t_refl + self.t_PV,
                                        fuel_string = self.core_mat_string,
                                        refl_mat = self.refl_mat_string,
+                                       cool_mat = self.cool_mat_string,
                                        volume = self.core_vol,
                                        fuel_rho = self.rho,
                                        shift_core = -(self.z + self.t_refl + 100),
                                        refl_rho = md.mats[self.refl]['rho'],
+                                       cool_rho = self.rho_cool,
                                        ksrc_z = -(self.z + 99))
         # write the file
         ifile = open(name, 'w')
@@ -206,10 +232,10 @@ if __name__=='__main__':
               'matr' : None,
               'cool' : 'CO2',
               'clad' : 'Inconel-718',
-              'fuel_frac' : 0.6,
+              'fuel_frac' : 0.3,
               'rho_cool' : 252.638e-3,
-              'ref_mult' : 0.16,
-              'core_r' : 17.6308
+              'ref_mult' : 0.46,
+              'core_r' : 23.6308
              }
 
     input = HomogeneousInput(config=config) 

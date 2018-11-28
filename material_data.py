@@ -23,6 +23,7 @@ mats = {
                 },
 
         'CO2'   : {
+                'P_ave' : 1.75e07,    # Pa
                 'rho' : None, 
                 'comp' : {
                           6000 : 2.7291e-01,
@@ -123,8 +124,14 @@ mats = {
                           },
                 'XS'   : '80c',
                 'sab'  : 'be.20t'
-                }
-       }
+                },
+        'SS304'       :  {
+                # tensile strength (Pa) @ 538C  (SS information center)
+                'strength' : 275.79e6,
+                'rho'      : 8.050   # density g/cc
+                      }
+    }
+
 
 
 def enrich_fuel(enrich, fuel):
